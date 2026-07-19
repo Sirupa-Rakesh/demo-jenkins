@@ -1,5 +1,5 @@
 output "public_ip" {
-  value = aws_eip.jenkins.public_ip
+  value = aws_eip.Rakesh.public_ip
 }
 
 output "jenkins_url" {

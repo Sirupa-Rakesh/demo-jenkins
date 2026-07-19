@@ -17,8 +17,9 @@ data "aws_route53_zone" "domain" {
 
 
 
-resource "aws_security_group" "jenkins" {
-  name = "jenkins-sg"
+
+resource "aws_security_group" "Sai-sg" {
+  name = "Sai-sg"
 
   ingress {
     from_port = 22
@@ -47,31 +48,30 @@ resource "aws_security_group" "jenkins" {
     protocol = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
-}
-
-
-
-
-resource "aws_instance" "jenkins" {
-
-  ami                    = var.ami_id
-  instance_type          = var.instance_type
-  subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.jenkins.id]
-
-  user_data = file("install.sh")
 
   tags = {
-    Name = "Jenkins"
+    Name = "Sai_sg"
   }
 }
 
 
 
 
-resource "aws_eip" "jenkins" {
+resource "aws_instance" "Rakesh" {
 
+  ami                    = var.ami_id
+  instance_type          = var.instance_type
+  subnet_id              = data.aws_subnets.default.ids[0]
+  vpc_security_group_ids = [aws_security_group.Rakesh-sg.id]
+
+  user_data = file("install.sh")
+
+  tags = {
+    Name = "Rakesh"
+  }
+}
+
+resource "aws_eip" "Rakesh" {
   domain = "vpc"
-
-  instance = aws_instance.jenkins.id
+  instance = aws_instance.Rakesh.id
 }
