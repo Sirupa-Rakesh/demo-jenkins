@@ -62,7 +62,7 @@ resource "aws_instance" "Rakesh" {
   ami                    = var.ami_id
   instance_type          = var.instance_type
   subnet_id              = data.aws_subnets.default.ids[0]
-  vpc_security_group_ids = [aws_security_group.Rakesh-sg.id]
+  vpc_security_group_ids = [aws_security_group.Sai-sg.id]
 
   user_data = file("install.sh")
 
