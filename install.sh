@@ -2,22 +2,14 @@
 set -e  # Exit on error
 REPO_URL="https://github.com/Sirupa-Rakesh/demo-jenkins.git"
 DEST_DIR="/home/ec2-user/demo-jenkins"
-
 # Make this script executable (optional)
+
 chmod +x "$0"
-
-echo "Cloning repository..."
-
-# Check if Git is installed
-if ! command -v git &> /dev/null; then
-    echo "Git is not installed. Installing Git..."
-    sudo yum install -y git
-fi
 
 # Clone the repository if it doesn't already exist
 if [ ! -d "$DEST_DIR" ]; then
     git clone "$REPO_URL" "$DEST_DIR"
-    echo "Repository cloned successfully."
+    echo "Repository cloned successfully...."
 else
     echo "Repository already exists."
 fi
