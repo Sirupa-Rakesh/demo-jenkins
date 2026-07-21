@@ -522,6 +522,272 @@ After completing this project, you will understand how to:
 - SSL Termination
 - Multi-Environment Deployment (Dev, Test, Prod)
 
+
+
+
+Updated Architecture
+                                    Internet
+                                        │
+                                        │
+                        ┌───────────────┴────────────────┐
+                        │                                │
+                        ▼                                ▼
+              sai.rakeshdev.online             sonar.rakeshdev.online
+                   Route53 DNS                     Route53 DNS
+                        │                                │
+                        ▼                                ▼
+                   Elastic IP                      Elastic IP
+                        │                                │
+        ┌───────────────┘                                └───────────────┐
+        ▼                                                               ▼
+ ┌──────────────────────┐                                  ┌──────────────────────┐
+ │ Jenkins Controller   │                                  │ SonarQube Server     │
+ │ Amazon EC2           │                                  │ Docker + PostgreSQL  │
+ │ Java 21              │                                  │ Port 9000            │
+ │ Jenkins              │                                  └──────────────────────┘
+ └──────────┬───────────┘
+            │
+            │ SSH
+            ▼
+ ┌──────────────────────┐
+ │ Jenkins Agent        │
+ │ Docker               │
+ │ Java                 │
+ │ kubectl              │
+ │ Helm                 │
+ │ K9s                  │
+ └──────────┬───────────┘
+            │
+            ▼
+ ┌──────────────────────┐
+ │ GitHub Runner        │
+ │ Docker               │
+ │ Maven                │
+ │ Python               │
+ │ Trivy                │
+ │ kubectl              │
+ └──────────────────────┘
+Complete Infrastructure Flow
+                terraform init
+                       │
+                       ▼
+               Downloads AWS Provider
+                       │
+                       ▼
+                terraform plan
+                       │
+                       ▼
+           Calculates Execution Plan
+                       │
+                       ▼
+               terraform apply
+                       │
+       ┌───────────────┼────────────────┐
+       ▼               ▼                ▼
+ Read Default VPC  Read Subnet   Read Hosted Zone
+       │               │                │
+       └───────────────┼────────────────┘
+                       ▼
+            Create Security Group
+                       │
+         ┌─────────────┼─────────────┐
+         ▼             ▼             ▼
+   Jenkins EC2    Agent EC2     SonarQube EC2
+         │             │             │
+         ▼             ▼             ▼
+    UserData      UserData      UserData
+         │             │             │
+         ▼             ▼             ▼
+ Install Jenkins   Install Tools  Install Docker
+         │             │             │
+         ▼             ▼             ▼
+    Elastic IP                    Elastic IP
+         │                             │
+         ▼                             ▼
+     Route53 DNS                 Route53 DNS
+         │                             │
+         ▼                             ▼
+ Browser → Jenkins             Browser → SonarQube
+Terraform Workflow
+Write Terraform Code
+          │
+          ▼
+terraform fmt
+          │
+          ▼
+terraform validate
+          │
+          ▼
+terraform init
+          │
+          ▼
+terraform plan
+          │
+          ▼
+terraform apply
+          │
+          ▼
+AWS Infrastructure Created
+User Data Execution
+EC2 Launch
+     │
+     ▼
+Cloud-Init Starts
+     │
+     ▼
+Reads user_data
+     │
+     ▼
+Executes Shell Script
+     │
+     ▼
+Installs Packages
+     │
+     ▼
+Starts Services
+     │
+     ▼
+Server Ready
+DNS Flow
+Browser
+   │
+   ▼
+sonar.rakeshdev.online
+   │
+   ▼
+Route53 Hosted Zone
+   │
+   ▼
+A Record
+   │
+   ▼
+Elastic IP
+   │
+   ▼
+EC2 Instance
+   │
+   ▼
+Docker
+   │
+   ▼
+SonarQube
+Jenkins Build Flow
+Developer
+     │
+     ▼
+Push Code to GitHub
+     │
+     ▼
+GitHub Webhook
+     │
+     ▼
+Jenkins Controller
+     │
+     ▼
+Assign Job
+     │
+     ▼
+Jenkins Agent
+     │
+     ▼
+Build Project
+     │
+     ▼
+Run Tests
+     │
+     ▼
+SonarQube Scan
+     │
+     ▼
+Docker Build
+     │
+     ▼
+Deploy
+Resource Explanation
+Resource	Definition	Purpose
+Provider	Connects Terraform to AWS	Allows Terraform to call AWS APIs
+Variable	Input value	Makes code reusable
+Local	Local reusable values	Avoids repeating code
+Resource	Creates AWS infrastructure	EC2, SG, Route53, EIP
+Data Source	Reads existing AWS resources	Default VPC, Subnet, Hosted Zone
+Output	Displays values after Apply	Public IP, URLs
+User Data	Script executed on first boot	Automatic software installation
+Count	Creates resources conditionally	Enable/disable resources
+Elastic IP	Static Public IP	Prevents IP changes
+Route53	AWS DNS Service	Maps domain to server
+Security Group	Virtual firewall	Controls inbound/outbound traffic
+EC2	Virtual Machine	Runs Jenkins, SonarQube
+Docker	Container platform	Runs SonarQube and PostgreSQL
+Jenkins	CI/CD automation server	Builds and deploys applications
+Jenkins Agent	Worker node	Executes build jobs
+GitHub Runner	GitHub Actions executor	Runs GitHub workflow jobs
+SonarQube	Code quality platform	Static analysis and quality checks
+PostgreSQL	Relational database	Stores SonarQube data
+AMI	Amazon Machine Image	Template used to launch EC2
+Route53 A Record	Maps domain to IP	Resolves DNS queries
+Root Block Device	EC2 storage volume	Stores operating system and data
+Tags	Metadata for AWS resources	Helps identify and organize resources
+How Each EC2 Works
+Jenkins Controller
+Hosts Jenkins UI
+Manages jobs
+Schedules builds
+Connects with GitHub
+Sends jobs to Jenkins Agents
+Jenkins Agent
+Executes Jenkins builds
+Contains Docker
+Contains Java
+Contains kubectl
+Contains Helm
+Contains k9s
+GitHub Runner
+Executes GitHub Actions workflows
+Builds applications
+Runs Trivy scans
+Executes Docker builds
+Deploys applications
+SonarQube Server
+Runs inside Docker
+Uses PostgreSQL database
+Analyzes source code
+Reports Bugs
+Reports Vulnerabilities
+Reports Code Smells
+Generates Quality Gate results
+Overall CI/CD Flow
+Developer
+    │
+    ▼
+GitHub Repository
+    │
+    ▼
+Jenkins Trigger
+    │
+    ▼
+Jenkins Controller
+    │
+    ▼
+Jenkins Agent
+    │
+    ▼
+Build
+    │
+    ▼
+Test
+    │
+    ▼
+SonarQube Analysis
+    │
+    ▼
+Docker Image
+    │
+    ▼
+Deploy
+
+This expanded README will look much more like a production-grade GitHub project. It explains not only what each component is, but also why it's used and how the entire infrastructure works end-to-end, making it valuable for recruiters, interviewers, and anyone reviewing your repository.
+
+
 ---
 
 # Author
