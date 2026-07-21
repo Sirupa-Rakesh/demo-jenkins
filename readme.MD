@@ -493,7 +493,9 @@ Removes every instance, EIP, the security group, and both DNS records.
 
 ## Author
 
-**Rakesh Sirupa**---DevOps Engineer
+**Rakesh Sirupa**
+
+DevOps Engineer
 
 Skills:-
   AWS 
