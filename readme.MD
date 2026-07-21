@@ -68,47 +68,52 @@ Updated Architecture
 
 
 
-                                    Internet
-                                        │
-                                        │
-                        ┌───────────────┴────────────────┐
-                        │                                │
-                        ▼                                ▼
-              sai.rakeshdev.online             sonar.rakeshdev.online
-                   Route53 DNS                     Route53 DNS
-                        │                                │
-                        ▼                                ▼
-                   Elastic IP                      Elastic IP
-                        │                                │
-        ┌───────────────┘                                └───────────────┐
-        ▼                                                               ▼
- ┌──────────────────────┐                                  ┌──────────────────────┐
- │ Jenkins Controller   │                                  │ SonarQube Server     │
- │ Amazon EC2           │                                  │ Docker + PostgreSQL  │
- │ Java 21              │                                  │ Port 9000            │
- │ Jenkins              │                                  └──────────────────────┘
- └──────────┬───────────┘
-            │
-            │ SSH
-            ▼
- ┌──────────────────────┐
- │ Jenkins Agent        │
- │ Docker               │
- │ Java                 │
- │ kubectl              │
- │ Helm                 │
- │ K9s                  │
- └──────────┬───────────┘
-            │
-            ▼
- ┌──────────────────────┐
- │ GitHub Runner        │
- │ Docker               │
- │ Maven                │
- │ Python               │
- │ Trivy                │
- │ kubectl              │
- └──────────────────────┘
+
+
+
+
+
+                                                  Internet
+                                                       │
+                                                       │
+                                   ┌───────────────┴────────────────┐
+                                   │                                │
+                                   ▼                                ▼
+                              sai.rakeshdev.online             sonar.rakeshdev.online
+                              Route53 DNS                     Route53 DNS
+                                   │                                │
+                                   ▼                                ▼
+                              Elastic IP                      Elastic IP
+                                   │                                │
+                    ┌───────────────┘                                └───────────────┐
+                    ▼                                                               ▼
+               ┌──────────────────────┐                                  ┌──────────────────────┐
+               │ Jenkins Controller   │                                  │ SonarQube Server     │
+               │ Amazon EC2           │                                  │ Docker + PostgreSQL  │
+               │ Java 21              │                                  │ Port 9000            │
+               │ Jenkins              │                                  └──────────────────────┘
+               └──────────┬───────────┘
+                    │
+                    │ SSH
+                    ▼
+               ┌──────────────────────┐
+               │ Jenkins Agent        │
+               │ Docker               │
+               │ Java                 │
+               │ kubectl              │
+               │ Helm                 │
+               │ K9s                  │
+               └──────────┬───────────┘
+                    │
+                    ▼
+               ┌──────────────────────┐
+               │ GitHub Runner        │
+               │ Docker               │
+               │ Maven                │
+               │ Python               │
+               │ Trivy                │
+               │ kubectl              │
+               └──────────────────────┘
 
 ----------------------------------------------------------------------------------------------------------------------------------
 
