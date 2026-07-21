@@ -65,6 +65,9 @@ http://sonar.rakeshdev.online:9000
 
 
 Updated Architecture
+
+
+
                                     Internet
                                         │
                                         │
