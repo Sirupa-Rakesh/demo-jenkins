@@ -122,46 +122,46 @@ Complete Infrastructure Flow
 
 
 
-                terraform init
-                       │
-                       ▼
-               Downloads AWS Provider
-                       │
-                       ▼
-                terraform plan
-                       │
-                       ▼
-           Calculates Execution Plan
-                       │
-                       ▼
-               terraform apply
-                       │
-       ┌───────────────┼────────────────┐
-       ▼               ▼                ▼
- Read Default VPC  Read Subnet   Read Hosted Zone
-       │               │                │
-       └───────────────┼────────────────┘
-                       ▼
-            Create Security Group
-                       │
-         ┌─────────────┼─────────────┐
-         ▼             ▼             ▼
-   Jenkins EC2    Agent EC2     SonarQube EC2
-         │             │             │
-         ▼             ▼             ▼
-    UserData      UserData      UserData
-         │             │             │
-         ▼             ▼             ▼
- Install Jenkins   Install Tools  Install Docker
-         │             │             │
-         ▼             ▼             ▼
-    Elastic IP                    Elastic IP
-         │                             │
-         ▼                             ▼
-     Route53 DNS                 Route53 DNS
-         │                             │
-         ▼                             ▼
- Browser → Jenkins             Browser → SonarQube
+                                             terraform init
+                                                  │
+                                                  ▼
+                                             Downloads AWS Provider
+                                                  │
+                                                  ▼
+                                             terraform plan
+                                                  │
+                                                  ▼
+                                        Calculates Execution Plan
+                                                  │
+                                                  ▼
+                                             terraform apply
+                                                  │
+                                   ┌───────────────┼────────────────┐
+                                   ▼               ▼                ▼
+                              Read Default VPC  Read Subnet   Read Hosted Zone
+                                   │               │                │
+                                   └───────────────┼────────────────┘
+                                                  ▼
+                                        Create Security Group
+                                                  │
+                                   ┌─────────────┼─────────────┐
+                                   ▼             ▼             ▼
+                              Jenkins EC2    Agent EC2     SonarQube EC2
+                                   │             │             │
+                                   ▼             ▼             ▼
+                              UserData      UserData      UserData
+                                   │             │             │
+                                   ▼             ▼             ▼
+                              Install Jenkins   Install Tools  Install Docker
+                                   │             │             │
+                                   ▼             ▼             ▼
+                              Elastic IP                    Elastic IP
+                                   │                             │
+                                   ▼                             ▼
+                                   Route53 DNS                 Route53 DNS
+                                   │                             │
+                                   ▼                             ▼
+                              Browser → Jenkins             Browser → SonarQube
 
 -------------------------------------------------------------------------------------------------------------------------------------
 
