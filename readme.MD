@@ -1,527 +1,66 @@
-# Jenkins Infrastructure on AWS using Terraform
+# Jenkins + SonarQube CI/CD Infrastructure on AWS using Terraform
 
 ## Project Overview
 
-This project provisions a complete Jenkins server on AWS using **Terraform Infrastructure as Code (IaC)**.
+This project provisions a full CI/CD infrastructure on AWS using **Terraform Infrastructure as Code (IaC)**.
 
-The infrastructure includes:
+It has grown beyond a single Jenkins box into a small CI/CD platform:
 
-- AWS EC2 Instance
-- Security Group
-- Elastic IP (Static Public IP)
-- Route 53 DNS Record
-- Automatic Java Installation
-- Automatic Jenkins Installation
-- Outputs for Public IP and Jenkins URL
+- **Jenkins server** — the main controller, reachable at a custom domain
+- **Jenkins agent** — a build worker with Docker, Kubernetes tooling, and Helm pre-installed
+- **SonarQube** — static code analysis server, backed by PostgreSQL, on its own subdomain
+- **GitHub Actions runner** — a self-hosted runner for GitHub workflows (disabled by default)
+- **Elastic IPs** — one per public-facing service, so the IP survives stop/start
+- **Route 53 DNS records** — `jenkins.rakeshdev.online` and `sonar.rakeshdev.online`
+- **One shared Security Group** — opens SSH, HTTP, Jenkins (8080), and SonarQube (9000)
 
-Once Terraform finishes, Jenkins will be available through your custom domain.
-
-Example:
+Once Terraform finishes, Jenkins and SonarQube are each available on their own subdomain.
 
 ```
-http://jenkins.example.com:8080
-```
-
----
-
-# Architecture
-
-```
-                      Internet
-                          │
-                          ▼
-                jenkins.example.com
-                    (Route53 DNS)
-                          │
-                          ▼
-                    Elastic IP (EIP)
-                          │
-                          ▼
-                 EC2 Instance (Amazon Linux)
-                          │
-          ┌───────────────┴───────────────┐
-          │                               │
-        Java                          Jenkins
-          │                               │
-          └───────────────┬───────────────┘
-                          │
-              http://jenkins.example.com:8080
+http://jenkins.rakeshdev.online:8080
+http://sonar.rakeshdev.online:9000
 ```
 
 ---
 
-# Technologies Used
+## Architecture
 
-- Terraform
-- AWS EC2
-- AWS Route53
-- AWS Security Groups
-- AWS Elastic IP
-- Amazon Linux 2023
-- Jenkins
-- Java 21 (Amazon Corretto)
+```
+                                Internet
+                                    │
+                                    ▼
+                        Route53 hosted zone
+                          (rakeshdev.online)
+                          │                │
+              jenkins.rakeshdev.online   sonar.rakeshdev.online
+                          │                │
+                          ▼                ▼
+                  Elastic IP (Rakesh)  Elastic IP (sonarqube)
+                          │                │
+                          ▼                ▼
+              ┌─────────────────┐  ┌─────────────────┐
+              │  Jenkins server │  │   SonarQube      │
+              │  (t3.micro)     │  │   (t3.large)     │
+              │  port 8080      │  │   port 9000      │
+              └────────┬────────┘  │  Postgres in      │
+                       │           │  Docker network    │
+                       ▼           └─────────────────┘
+              ┌─────────────────┐  ┌─────────────────┐
+              │  Jenkins agent  │  │  GitHub runner   │
+              │  (t3.micro,     │  │  (t3.micro,      │
+              │  Docker/K8s     │  │  disabled by     │
+              │  tooling)       │  │  default)        │
+              └─────────────────┘  └─────────────────┘
+
+        All four instances share one Security Group (Sai-sg):
+              22 (SSH) · 80 (HTTP) · 8080 (Jenkins) · 9000 (SonarQube)
+```
+
+*(See the diagram above for a live rendering of this layout.)*
+
+
 
 ---
-
-# Project Structure
-
-```
-terraform-jenkins/
-│
-├── provider.tf
-├── variables.tf
-├── main.tf
-├── security-group.tf
-├── ec2.tf
-├── eip.tf
-├── route53.tf
-├── outputs.tf
-├── terraform.tfvars
-├── install.sh
-└── README.md
-```
-
----
-
-# Terraform Files Explanation
-
-## provider.tf
-
-Configures the AWS Provider.
-
-Terraform uses this provider to communicate with AWS APIs.
-
-```hcl
-provider "aws" {
-  region = var.region
-}
-```
-
----
-
-## variables.tf
-
-Defines reusable input variables.
-
-Variables make the code reusable without modifying the source code.
-
-Variables used:
-
-- region
-- ami
-- instance_type
-- key_name
-- domain_name
-- subdomain
-
----
-
-## terraform.tfvars
-
-Contains actual values for the variables.
-
-Example:
-
-```hcl
-region = "us-east-1"
-
-ami = "ami-xxxxxxxx"
-
-instance_type = "t2.micro"
-
-key_name = "my-key"
-
-domain_name = "example.com"
-
-subdomain = "jenkins"
-```
-
----
-
-## main.tf
-
-Reads existing AWS resources.
-
-This project reads:
-
-- Default VPC
-- Default Subnet
-- Existing Route53 Hosted Zone
-
-Terraform does not create these resources.
-
----
-
-## security-group.tf
-
-Creates a Security Group.
-
-Allowed Ports:
-
-| Port | Protocol | Purpose |
-|-------|----------|----------|
-|22|TCP|SSH|
-|80|TCP|HTTP|
-|8080|TCP|Jenkins|
-
-Outbound:
-
-All traffic allowed.
-
----
-
-## ec2.tf
-
-Creates the Jenkins EC2 Instance.
-
-Attached Resources:
-
-- Security Group
-- Key Pair
-- Default Subnet
-
-During instance launch,
-
-Terraform executes:
-
-```
-install.sh
-```
-
-which automatically installs Jenkins.
-
----
-
-## install.sh
-
-Executed only once during EC2 boot.
-
-Tasks:
-
-- Update OS
-- Install Java
-- Add Jenkins Repository
-- Install Jenkins
-- Enable Jenkins
-- Start Jenkins
-
-No manual installation is required.
-
----
-
-## eip.tf
-
-Creates an Elastic IP.
-
-Why?
-
-Normal Public IP changes after stopping and starting an EC2 instance.
-
-Elastic IP remains the same.
-
-This keeps the Route53 record working.
-
----
-
-## route53.tf
-
-Creates a DNS Record.
-
-Example:
-
-```
-jenkins.example.com
-```
-
-points to
-
-```
-Elastic IP
-```
-
-Record Type:
-
-```
-A Record
-```
-
----
-
-## outputs.tf
-
-Displays useful information after Terraform Apply.
-
-Outputs:
-
-- Public IP
-- Jenkins URL
-
-Example:
-
-```
-Outputs:
-
-public_ip = 44.xx.xx.xx
-
-jenkins_url = http://jenkins.example.com:8080
-```
-
----
-
-# Prerequisites
-
-Before running Terraform, ensure the following are available:
-
-- AWS Account
-- IAM User with Administrator Access (or appropriate permissions)
-- AWS CLI installed
-- Terraform installed
-- Existing Route53 Hosted Zone
-- Registered Domain Name
-- EC2 Key Pair
-
----
-
-# Required AWS Permissions
-
-Terraform needs permissions for:
-
-- EC2
-- VPC
-- Security Groups
-- Elastic IP
-- Route53
-
----
-
-# Configure AWS Credentials
-
-```
-aws configure
-```
-
-Provide:
-
-```
-AWS Access Key
-
-AWS Secret Key
-
-Region
-
-Output Format
-```
-
-Verify:
-
-```
-aws sts get-caller-identity
-```
-
----
-
-# Initialize Terraform
-
-```
-terraform init
-```
-
-Downloads the AWS Provider.
-
----
-
-# Validate Configuration
-
-```
-terraform validate
-```
-
-Checks Terraform syntax.
-
----
-
-# Format Terraform Code
-
-```
-terraform fmt
-```
-
-Formats Terraform files.
-
----
-
-# Review Execution Plan
-
-```
-terraform plan
-```
-
-Shows resources Terraform will create.
-
----
-
-# Deploy Infrastructure
-
-```
-terraform apply
-```
-
-Type:
-
-```
-yes
-```
-
-Terraform will create:
-
-- Security Group
-- EC2 Instance
-- Elastic IP
-- Route53 Record
-
-It will also install Jenkins automatically.
-
----
-
-# Verify Jenkins
-
-SSH into EC2:
-
-```
-ssh -i mykey.pem ec2-user@<Elastic-IP>
-```
-
-Check Jenkins status:
-
-```
-systemctl status jenkins
-```
-
-Get initial admin password:
-
-```
-sudo cat /var/lib/jenkins/secrets/initialAdminPassword
-```
-
-Open browser:
-
-```
-http://jenkins.example.com:8080
-```
-
----
-
-# Terraform Destroy
-
-To remove all created resources:
-
-```
-terraform destroy
-```
-
-Type:
-
-```
-yes
-```
-
-Terraform deletes:
-
-- EC2
-- Security Group
-- Elastic IP
-- Route53 Record
-
----
-
-# Infrastructure Flow
-
-```
-Terraform Apply
-        │
-        ▼
-Reads Default VPC
-        │
-        ▼
-Reads Default Subnet
-        │
-        ▼
-Reads Route53 Hosted Zone
-        │
-        ▼
-Creates Security Group
-        │
-        ▼
-Creates EC2 Instance
-        │
-        ▼
-Runs install.sh
-        │
-        ▼
-Installs Java
-        │
-        ▼
-Installs Jenkins
-        │
-        ▼
-Creates Elastic IP
-        │
-        ▼
-Associates Elastic IP
-        │
-        ▼
-Creates Route53 Record
-        │
-        ▼
-Access Jenkins using
-jenkins.example.com
-```
-
----
-
-# Key Terraform Concepts Used
-
-- Provider
-- Variables
-- Resources
-- Data Sources
-- Outputs
-- User Data
-- Security Groups
-- Route53 Records
-- Elastic IP
-- EC2 Instance
-
----
-
-# Learning Outcomes
-
-After completing this project, you will understand how to:
-
-- Provision AWS infrastructure using Terraform.
-- Create an EC2 instance automatically.
-- Configure Security Groups.
-- Install Jenkins using EC2 User Data.
-- Allocate and attach an Elastic IP.
-- Create Route53 DNS records.
-- Access Jenkins using a custom domain.
-- Manage infrastructure with Terraform lifecycle commands (`init`, `plan`, `apply`, and `destroy`).
-
----
-
-# Future Improvements
-
-- HTTPS using AWS Certificate Manager (ACM)
-- Application Load Balancer (ALB)
-- Auto Scaling Group
-- Remote Terraform State with S3
-- DynamoDB State Locking
-- IAM Role for EC2
-- CloudWatch Monitoring
-- Jenkins Backup using Amazon S3
-- SSL Termination
-- Multi-Environment Deployment (Dev, Test, Prod)
-
 
 
 
@@ -608,154 +147,12 @@ Complete Infrastructure Flow
          │                             │
          ▼                             ▼
  Browser → Jenkins             Browser → SonarQube
-Terraform Workflow
-Write Terraform Code
-          │
-          ▼
-terraform fmt
-          │
-          ▼
-terraform validate
-          │
-          ▼
-terraform init
-          │
-          ▼
-terraform plan
-          │
-          ▼
-terraform apply
-          │
-          ▼
-AWS Infrastructure Created
-User Data Execution
-EC2 Launch
-     │
-     ▼
-Cloud-Init Starts
-     │
-     ▼
-Reads user_data
-     │
-     ▼
-Executes Shell Script
-     │
-     ▼
-Installs Packages
-     │
-     ▼
-Starts Services
-     │
-     ▼
-Server Ready
-DNS Flow
-Browser
-   │
-   ▼
-sonar.rakeshdev.online
-   │
-   ▼
-Route53 Hosted Zone
-   │
-   ▼
-A Record
-   │
-   ▼
-Elastic IP
-   │
-   ▼
-EC2 Instance
-   │
-   ▼
-Docker
-   │
-   ▼
-SonarQube
-Jenkins Build Flow
-Developer
-     │
-     ▼
-Push Code to GitHub
-     │
-     ▼
-GitHub Webhook
-     │
-     ▼
-Jenkins Controller
-     │
-     ▼
-Assign Job
-     │
-     ▼
-Jenkins Agent
-     │
-     ▼
-Build Project
-     │
-     ▼
-Run Tests
-     │
-     ▼
-SonarQube Scan
-     │
-     ▼
-Docker Build
-     │
-     ▼
-Deploy
-Resource Explanation
-Resource	Definition	Purpose
-Provider	Connects Terraform to AWS	Allows Terraform to call AWS APIs
-Variable	Input value	Makes code reusable
-Local	Local reusable values	Avoids repeating code
-Resource	Creates AWS infrastructure	EC2, SG, Route53, EIP
-Data Source	Reads existing AWS resources	Default VPC, Subnet, Hosted Zone
-Output	Displays values after Apply	Public IP, URLs
-User Data	Script executed on first boot	Automatic software installation
-Count	Creates resources conditionally	Enable/disable resources
-Elastic IP	Static Public IP	Prevents IP changes
-Route53	AWS DNS Service	Maps domain to server
-Security Group	Virtual firewall	Controls inbound/outbound traffic
-EC2	Virtual Machine	Runs Jenkins, SonarQube
-Docker	Container platform	Runs SonarQube and PostgreSQL
-Jenkins	CI/CD automation server	Builds and deploys applications
-Jenkins Agent	Worker node	Executes build jobs
-GitHub Runner	GitHub Actions executor	Runs GitHub workflow jobs
-SonarQube	Code quality platform	Static analysis and quality checks
-PostgreSQL	Relational database	Stores SonarQube data
-AMI	Amazon Machine Image	Template used to launch EC2
-Route53 A Record	Maps domain to IP	Resolves DNS queries
-Root Block Device	EC2 storage volume	Stores operating system and data
-Tags	Metadata for AWS resources	Helps identify and organize resources
-How Each EC2 Works
-Jenkins Controller
-Hosts Jenkins UI
-Manages jobs
-Schedules builds
-Connects with GitHub
-Sends jobs to Jenkins Agents
-Jenkins Agent
-Executes Jenkins builds
-Contains Docker
-Contains Java
-Contains kubectl
-Contains Helm
-Contains k9s
-GitHub Runner
-Executes GitHub Actions workflows
-Builds applications
-Runs Trivy scans
-Executes Docker builds
-Deploys applications
-SonarQube Server
-Runs inside Docker
-Uses PostgreSQL database
-Analyzes source code
-Reports Bugs
-Reports Vulnerabilities
-Reports Code Smells
-Generates Quality Gate results
+
+---
+
 Overall CI/CD Flow
+
+
 Developer
     │
     ▼
@@ -785,26 +182,314 @@ Docker Image
     ▼
 Deploy
 
-This expanded README will look much more like a production-grade GitHub project. It explains not only what each component is, but also why it's used and how the entire infrastructure works end-to-end, making it valuable for recruiters, interviewers, and anyone reviewing your repository.
+---
 
+## Technologies Used
+
+- Terraform (AWS provider `6.33.0`)
+- AWS EC2, EIP, Security Groups, Route53, default VPC/Subnets (data sources)
+- RHEL 9 "DevOps Practice" custom AMI (Jenkins/agent/runner)
+- Ubuntu 24.04 SonarQube community AMI
+- Jenkins, SonarQube (Docker), PostgreSQL (Docker)
+- Java 21 (Amazon Corretto), Maven, Node.js 20, Python 3
+- Docker, kubectl, kubens, k9s, Helm 3, Trivy
+- GitHub Actions self-hosted runner (systemd service)
 
 ---
 
-# Author
+## Project Structure
+
+```
+terraform-jenkins/
+│
+├── provider.tf                # AWS provider + required_providers
+├── variables.tf                # Input variables and feature toggles
+├── data.tf                     # Custom AMI lookups (RHEL / SonarQube)
+├── locals.tf                   # Derived values (ami_id, tags, subnet)
+├── main.tf                     # EC2 instances, EIPs, Security Group, VPC/subnet/zone data
+├── outputs.tf                  # Public IP and Jenkins URL outputs
+├── route53.tf                  # DNS A records for Jenkins and SonarQube
+├── 9-install.sh                # Jenkins server bootstrap script
+├── 10-jenkins-agent.sh         # Jenkins agent bootstrap script
+├── 11-runner.sh                # GitHub Actions runner bootstrap script
+├── github-runner.service       # systemd unit for the runner
+├── 13-sonarqube.sh             # SonarQube + Postgres bootstrap script
+└── README.md
+```
+
+---
+
+## Terraform Files Explained
+
+### provider.tf
+
+Pins the AWS provider version and configures the region.
+
+```hcl
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.33.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+```
+
+**required_providers** — tells Terraform exactly which provider plugin and version to download, so `terraform init` is reproducible across machines instead of silently picking up a newer, possibly breaking, provider release.
+
+---
+
+### variables.tf
+
+Defines reusable inputs, including **feature toggle** booleans that turn whole resources on or off without editing the resource blocks themselves.
+
+| Variable | Purpose |
+|---|---|
+| `region` | AWS region (`us-east-1`) |
+| `ami_id` | Default AMI fallback |
+| `instance_type` | Default instance size (`t3.micro`) |
+| `domain_name` | Root domain (`rakeshdev.online`) |
+| `subdomain` | Jenkins subdomain (`sai`) |
+| `project` / `environment` | Used to build the `common_tags` map |
+| `Rakesh` | Toggle: create the Jenkins server + its EIP |
+| `sonar` | Toggle: create the SonarQube server + its EIP + DNS record |
+| `jenkins` | Toggle: create the Jenkins agent |
+| `runner` | Toggle: create the GitHub Actions runner (`false` by default) |
+
+**Feature toggle pattern** — each conditional resource uses `count = var.X ? 1 : 0`. When the variable is `true`, Terraform creates exactly one of that resource; when `false`, it creates zero. This lets you spin individual services up or down (e.g. disable the runner to save cost) just by flipping a variable, instead of commenting out code.
+
+---
+
+### data.tf
+
+Two **data sources** that look up existing AMIs by name instead of hardcoding an AMI ID (which changes per region and goes stale over time):
+
+- `data.aws_ami.joindevops` — a custom RHEL 9 "DevOps Practice" image, used for Jenkins, the Jenkins agent, and the runner.
+- `data.aws_ami.sonarqube` — a prebuilt Ubuntu 24.04 image with SonarQube dependencies baked in, used for the SonarQube server.
+
+**Data source** — a Terraform block that *reads* information about something that already exists (an AMI, a VPC, a hosted zone) rather than creating it. Terraform doesn't manage the lifecycle of a data source's target; it just fetches details to use elsewhere in the config.
+
+---
+
+### locals.tf
+
+Computes derived values once so they can be reused across resources:
+
+```hcl
+locals {
+  ami_id            = var.ami_id
+  common_tags        = { Project = var.project, Environment = var.environment, Terraform = "true" }
+  public_subnet_id   = data.aws_subnets.default.ids[0]
+}
+```
+
+**Locals** — named expressions, not user inputs. Unlike a `variable`, a `local` can't be overridden from the command line or a `.tfvars` file; it's Terraform's version of a computed constant, used here so every EC2 resource tags itself consistently via `common_tags` and picks the same subnet.
+
+---
+
+### main.tf
+
+The core of the project. Creates, in order:
+
+1. **`aws_instance.Rakesh`** — the Jenkins server, with a 50 GB `gp3` root volume, wired to the shared security group and the default subnet, bootstrapped by `9-install.sh`.
+2. **`aws_eip.Rakesh`** — an Elastic IP bound to the Jenkins instance.
+3. **`aws_instance.jenkins_agent`** — a `t3.micro` build agent bootstrapped by `10-jenkins-agent.sh`.
+4. **`aws_instance.runner`** — a `t3.micro` GitHub Actions runner bootstrapped by `11-runner.sh` (only created when `var.runner = true`).
+5. **`aws_instance.sonarqube`** — a `t3.large` SonarQube host (needs more CPU/RAM than the others) with a 150 GB root volume, bootstrapped by `13-sonarqube.sh`.
+6. **`aws_eip.sonarqube`** — an Elastic IP bound to the SonarQube instance.
+7. **`aws_security_group.Sai-sg`** — one shared security group for every instance above.
+8. **Data sources** — `aws_vpc.default`, `aws_subnets.default`, `aws_route53_zone.domain` — read the existing default VPC, its subnets, and the pre-existing hosted zone rather than creating new ones.
+
+**root_block_device** — the block that configures the EC2 instance's boot (root) EBS volume: its size in GB, its type (`gp3` is the current general-purpose SSD generation — cheaper and faster than the older `gp2`), and its own tags. Sizing this explicitly matters because SonarQube and its Postgres/Docker data need much more disk than a bare Jenkins install.
+
+**`count = var.X ? 1 : 0`** — see *feature toggle pattern* above. Because these resources use `count`, referencing them elsewhere requires an index, e.g. `aws_instance.Rakesh[0].id` or `aws_eip.Rakesh[count.index]`.
+
+---
+
+### security-group.tf (now inside main.tf as `Sai-sg`)
+
+One security group shared by all four instances.
+
+| Port | Protocol | Purpose |
+|---|---|---|
+| 22 | TCP | SSH |
+| 80 | TCP | HTTP |
+| 8080 | TCP | Jenkins web UI |
+| 9000 | TCP | SonarQube web UI |
+
+Outbound: all traffic allowed.
+
+**Security Group** — a virtual, stateful firewall attached to instances (not subnets). "Stateful" means a response to an allowed inbound request is automatically allowed back out, without needing a matching outbound rule.
+
+---
+
+### route53.tf
+
+Creates two **A records**:
+
+- `jenkins.rakeshdev.online` → the Jenkins Elastic IP
+- `sonar.rakeshdev.online` → the SonarQube Elastic IP (only when `var.sonar = true`)
+
+**A record** — a DNS record mapping a hostname directly to an IPv4 address. `ttl = 300` tells resolvers to cache that mapping for 5 minutes before re-checking it.
+
+---
+
+### outputs.tf
+
+```hcl
+output "public_ip" {
+  value = aws_eip.Rakesh[0].public_ip
+}
+
+output "jenkins_url" {
+  value = "http://${var.subdomain}.${var.domain_name}:8080"
+}
+```
+
+Prints the Jenkins Elastic IP and full URL after `terraform apply` finishes.
+
+---
+
+## Bootstrap Scripts (`user_data`)
+
+Each EC2 instance runs a shell script once, on first boot, via the `user_data` argument. This is how Terraform hands off from "instance exists" to "instance is actually configured."
+
+### 9-install.sh — Jenkins server
+- Clones the pipeline demo repo
+- Installs Java 21 and Jenkins from the official Jenkins yum repo
+- Enables and starts the `jenkins` service
+
+### 10-jenkins-agent.sh — Jenkins agent
+- Grows the root filesystem (the custom AMI's default volume is small, so this expands `/`, `/var`, `/home` with `growpart` + `lvextend` + `xfs_growfs`)
+- Installs Java, Node.js 20, Docker
+- Installs **kubectl**, **kubens**, **k9s**, and **Helm 3** — the standard Kubernetes operator toolkit — so builds on this agent can deploy to a cluster
+
+### 11-runner.sh — GitHub Actions runner
+- Same filesystem-growing step
+- Installs Maven, Node.js, Python 3, Docker, the Kubernetes tooling above, plus **Trivy** (a container/IaC vulnerability scanner)
+- `github-runner.service` is a systemd unit that keeps the GitHub Actions runner process (`run.sh`) alive and auto-restarting
+
+### 13-sonarqube.sh — SonarQube server
+- Installs Docker
+- Creates a dedicated Docker network (`sonarqube`) so containers can resolve each other by name
+- Runs **PostgreSQL** in a container as SonarQube's backing database
+- Grows `/var` (Docker's data lives there) and prunes unused Docker data
+- Runs **SonarQube** in a container, pointed at the Postgres container via `SONAR_JDBC_URL`
+
+**Docker network** — a virtual bridge that lets containers on the same host talk to each other by container name (`postgres`, `sonarqube`) instead of hardcoded IPs.
+
+---
+
+## New Terms Glossary
+
+| Term | Definition |
+|---|---|
+| **SonarQube** | A self-hosted static code analysis platform that scans source code for bugs, security vulnerabilities, and code smells, and reports a quality score for each project. |
+| **Jenkins agent** | A separate machine (or container) that Jenkins' controller delegates build/test work to, so the controller itself stays lightweight and builds can run in parallel across multiple agents. |
+| **GitHub Actions runner (self-hosted)** | A machine you provide and register with a GitHub repo/org so GitHub Actions workflows execute on your own infrastructure instead of GitHub's shared cloud runners — useful for custom tooling, private network access, or cost control. |
+| **Trivy** | An open-source scanner that checks container images, filesystems, and IaC files (like Terraform) for known vulnerabilities and misconfigurations. |
+| **k9s** | A terminal-based UI for navigating and managing a Kubernetes cluster interactively, instead of typing `kubectl` commands one at a time. |
+| **kubens** | A small CLI utility for switching the active Kubernetes namespace quickly. |
+| **Helm** | The package manager for Kubernetes — bundles a set of Kubernetes manifests into a reusable, versioned "chart" that can be installed/upgraded with one command. |
+| **gp3 volume** | The current generation of AWS general-purpose SSD (EBS) storage — cheaper per GB and with independently configurable IOPS/throughput compared to the older `gp2` type. |
+| **Elastic IP (EIP)** | A static public IPv4 address you allocate in your AWS account and attach to an instance. Unlike an instance's default public IP, it doesn't change if the instance stops and starts. |
+| **Security Group** | A stateful virtual firewall attached directly to EC2 instances/ENIs, controlling inbound and outbound traffic by port and protocol. |
+| **Data source (Terraform)** | A Terraform block that reads/looks up an existing resource (AMI, VPC, hosted zone) rather than creating a new one. |
+| **Locals (Terraform)** | Named, computed expressions internal to a Terraform config — not settable from outside, unlike variables. |
+| **`count` meta-argument** | Turns a resource block into a conditional or repeated resource; `count = var.x ? 1 : 0` creates the resource only if the boolean variable is true. |
+| **`required_providers`** | A block that pins the exact provider (e.g. `hashicorp/aws`) and version Terraform must use, keeping `terraform init` reproducible. |
+| **Docker network** | A virtual network Docker creates so containers can reach each other by container name, isolated from the host's default networking. |
+| **root_block_device** | The Terraform block configuring an EC2 instance's boot volume — size, type, and tags. |
+| **A record** | A DNS record type mapping a hostname to an IPv4 address. |
+| **TTL (Time To Live)** | How long (in seconds) a DNS resolver is allowed to cache a record before re-querying it. |
+
+---
+
+## Prerequisites
+
+- AWS Account with an IAM user (Administrator Access or scoped EC2/VPC/Route53/EIP permissions)
+- AWS CLI installed and configured (`aws configure`, verify with `aws sts get-caller-identity`)
+- Terraform installed
+- An existing Route53 hosted zone for your domain
+- A registered domain name
+
+---
+
+## Deploying
+
+```bash
+terraform init      # downloads the AWS provider (6.33.0)
+terraform fmt        # formats the files
+terraform validate   # checks syntax
+terraform plan        # shows what will be created
+terraform apply       # creates it — type "yes" to confirm
+```
+
+Toggle which services get built by editing `variables.tf` before applying:
+
+```hcl
+variable "Rakesh"  { default = true  }  # Jenkins server
+variable "sonar"   { default = true  }  # SonarQube
+variable "jenkins" { default = true  }  # Jenkins agent
+variable "runner"  { default = false } # GitHub Actions runner
+```
+
+## Verifying
+
+```bash
+# Jenkins
+ssh -i mykey.pem ec2-user@<jenkins-eip>
+systemctl status jenkins
+sudo cat /var/lib/jenkins/secrets/initialAdminPassword
+# -> http://jenkins.rakeshdev.online:8080
+
+# SonarQube
+ssh -i mykey.pem ec2-user@<sonarqube-eip>
+docker ps
+# -> http://sonar.rakeshdev.online:9000  (default login: admin/admin)
+```
+
+## Tearing Down
+
+```bash
+terraform destroy   # type "yes" to confirm
+```
+
+Removes every instance, EIP, the security group, and both DNS records.
+
+---
+
+## Future Improvements
+
+- HTTPS via AWS Certificate Manager + Application Load Balancer
+- Auto Scaling Group for Jenkins agents
+- Remote Terraform state in S3 with DynamoDB locking
+- IAM instance roles instead of static credentials
+- CloudWatch monitoring and alerting
+- Jenkins/SonarQube backups to S3
+- Multi-environment (dev/test/prod) workspaces
+
+---
+
+## Author
 
 **Rakesh Sirupa**
-
 DevOps Engineer
 
-Skills:
-
-- AWS
-- Terraform
-- Jenkins
-- Docker
-- Kubernetes
-- Git & GitHub
-- Linux
-- CI/CD
-- Route53
-- Infrastructure as Code
+Skills:-
+  AWS 
+· Terraform 
+· Jenkins 
+· SonarQube 
+· Docker 
+· Kubernetes 
+· Git & GitHub 
+· Linux 
+· CI/CD 
+· Route53 
+· Infrastructure as Code
