@@ -21,7 +21,7 @@ http://jenkins.rakeshdev.online:8080
 http://sonar.rakeshdev.online:9000
 ```
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Architecture
 
@@ -60,7 +60,7 @@ http://sonar.rakeshdev.online:9000
 
 
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 
 
@@ -109,7 +109,14 @@ Updated Architecture
  │ Trivy                │
  │ kubectl              │
  └──────────────────────┘
+
+----------------------------------------------------------------------------------------------------------------------------------
+
+
 Complete Infrastructure Flow
+
+
+
                 terraform init
                        │
                        ▼
@@ -151,7 +158,7 @@ Complete Infrastructure Flow
          ▼                             ▼
  Browser → Jenkins             Browser → SonarQube
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 Overall CI/CD Flow
 
@@ -185,7 +192,7 @@ Docker Image
     ▼
 Deploy
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Technologies Used
 
@@ -198,7 +205,7 @@ Deploy
 - Docker, kubectl, kubens, k9s, Helm 3, Trivy
 - GitHub Actions self-hosted runner (systemd service)
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Project Structure
 
@@ -220,7 +227,7 @@ terraform-jenkins/
 └── README.md
 ```
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Terraform Files Explained
 
@@ -245,7 +252,7 @@ provider "aws" {
 
 **required_providers** — tells Terraform exactly which provider plugin and version to download, so `terraform init` is reproducible across machines instead of silently picking up a newer, possibly breaking, provider release.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### variables.tf
 
@@ -266,7 +273,7 @@ Defines reusable inputs, including **feature toggle** booleans that turn whole r
 
 **Feature toggle pattern** — each conditional resource uses `count = var.X ? 1 : 0`. When the variable is `true`, Terraform creates exactly one of that resource; when `false`, it creates zero. This lets you spin individual services up or down (e.g. disable the runner to save cost) just by flipping a variable, instead of commenting out code.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### data.tf
 
@@ -277,7 +284,7 @@ Two **data sources** that look up existing AMIs by name instead of hardcoding an
 
 **Data source** — a Terraform block that *reads* information about something that already exists (an AMI, a VPC, a hosted zone) rather than creating it. Terraform doesn't manage the lifecycle of a data source's target; it just fetches details to use elsewhere in the config.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### locals.tf
 
@@ -293,7 +300,7 @@ locals {
 
 **Locals** — named expressions, not user inputs. Unlike a `variable`, a `local` can't be overridden from the command line or a `.tfvars` file; it's Terraform's version of a computed constant, used here so every EC2 resource tags itself consistently via `common_tags` and picks the same subnet.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### main.tf
 
@@ -312,7 +319,7 @@ The core of the project. Creates, in order:
 
 **`count = var.X ? 1 : 0`** — see *feature toggle pattern* above. Because these resources use `count`, referencing them elsewhere requires an index, e.g. `aws_instance.Rakesh[0].id` or `aws_eip.Rakesh[count.index]`.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### security-group.tf (now inside main.tf as `Sai-sg`)
 
@@ -329,7 +336,7 @@ Outbound: all traffic allowed.
 
 **Security Group** — a virtual, stateful firewall attached to instances (not subnets). "Stateful" means a response to an allowed inbound request is automatically allowed back out, without needing a matching outbound rule.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### route53.tf
 
@@ -340,7 +347,7 @@ Creates two **A records**:
 
 **A record** — a DNS record mapping a hostname directly to an IPv4 address. `ttl = 300` tells resolvers to cache that mapping for 5 minutes before re-checking it.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ### outputs.tf
 
@@ -356,7 +363,7 @@ output "jenkins_url" {
 
 Prints the Jenkins Elastic IP and full URL after `terraform apply` finishes.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Bootstrap Scripts (`user_data`)
 
@@ -386,7 +393,7 @@ Each EC2 instance runs a shell script once, on first boot, via the `user_data` a
 
 **Docker network** — a virtual bridge that lets containers on the same host talk to each other by container name (`postgres`, `sonarqube`) instead of hardcoded IPs.
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## New Terms Glossary
 
@@ -411,7 +418,7 @@ Each EC2 instance runs a shell script once, on first boot, via the `user_data` a
 | **A record** | A DNS record type mapping a hostname to an IPv4 address. |
 | **TTL (Time To Live)** | How long (in seconds) a DNS resolver is allowed to cache a record before re-querying it. |
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Prerequisites
 
@@ -421,7 +428,7 @@ Each EC2 instance runs a shell script once, on first boot, via the `user_data` a
 - An existing Route53 hosted zone for your domain
 - A registered domain name
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Deploying
 
@@ -477,7 +484,7 @@ Removes every instance, EIP, the security group, and both DNS records.
 - Jenkins/SonarQube backups to S3
 - Multi-environment (dev/test/prod) workspaces
 
----
+-------------------------------------------------------------------------------------------------------------------------------------
 
 ## Author
 
