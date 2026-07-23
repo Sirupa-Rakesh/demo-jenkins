@@ -22,7 +22,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable jenkins
 sudo systemctl start jenkins
 
-echo "Jenkins installation complete!
+echo "Jenkins installation complete!"
 
 #chmod +x jenkins-install.sh, bash jenkins-install.sh,  
 
@@ -61,3 +61,5 @@ echo "===== Final Disk Usage ====="
 df -h "$MOUNT"
 
 echo "Resize completed successfully."
+
+chmod +x "$0"
