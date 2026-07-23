@@ -61,5 +61,3 @@ echo "===== Final Disk Usage ====="
 df -h "$MOUNT"
 
 echo "Resize completed successfully."
-
-chmod +x "$0"

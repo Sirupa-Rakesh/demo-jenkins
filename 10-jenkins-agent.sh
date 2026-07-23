@@ -42,3 +42,8 @@ sudo install -m 0755 /tmp/k9s /usr/local/bin && rm /tmp/k9s
 curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
 chmod 700 get_helm.sh
 ./get_helm.sh
+
+
+sudo su -
+dnf module enable nodejs:20 -y
+dnf install nodejs -y 
