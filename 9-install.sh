@@ -24,4 +24,42 @@ sudo systemctl start jenkins
 
 echo "Jenkins installation complete!
 
-#chmod +x jenkins-install.sh, bash jenkins-install.sh,      
+#chmod +x jenkins-install.sh, bash jenkins-install.sh,  
+
+
+DISK="/dev/nvme0n1"
+PARTITION="${DISK}p4"
+LV="/dev/RootVG/varVol"
+MOUNT="/var"
+
+echo "===== Current Disk Usage ====="
+df -h "$MOUNT"
+
+echo "===== Growing Partition ====="
+sudo growpart $DISK 4
+
+echo "===== Resizing Physical Volume ====="
+sudo pvresize $PARTITION
+
+echo "===== Extending Logical Volume ====="
+sudo lvextend -l +100%FREE $LV
+
+echo "===== Growing Filesystem ====="
+
+FSTYPE=$(findmnt -n -o FSTYPE $MOUNT)
+
+if [ "$FSTYPE" = "xfs" ]; then
+    sudo xfs_growfs $MOUNT
+elif [ "$FSTYPE" = "ext4" ]; then
+    sudo resize2fs $LV
+else
+    echo "Unsupported filesystem: $FSTYPE"
+    exit 1
+fi
+
+echo "===== Final Disk Usage ====="
+df -h "$MOUNT"
+
+echo "Resize completed successfully."
+
+chmod +x "$0"
